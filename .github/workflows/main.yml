@@ -118,3 +118,17 @@ jobs:
       with:
         name: helm-package
         path: ./*.tgz
+  
+  deploy-helm:
+    name: Deploy Helm Chart
+    needs: docker-ci, helm-ci
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: helm-package
+        path: .
+    
+    - name: Set Up Helm
+      uses: azure/setup-helm@v4.2.0
