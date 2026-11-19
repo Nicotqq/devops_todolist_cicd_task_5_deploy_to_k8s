@@ -44,7 +44,6 @@ jobs:
         - name: Create Kind Cluster
           uses: helm/kind-action@v1
           with:
-            config: cluster.yml
             cluster_name: ${{ inputs.environment }}
 
         
