@@ -49,8 +49,7 @@ jobs:
         
         - name: Helm Dry Run
           run: |
-            helm install "${{ inputs.helm-release-name }}" \
-              ./helm-charts/todoapp \
+            helm install todoapp ./helm-package/todoapp-*.tgz  \
               --namespace todoapp \
               --create-namespace \
               --dry-run \
@@ -60,9 +59,9 @@ jobs:
         - name: Deploy Helm Chart
           shell: bash
           run: |
-            helm upgrade --install \
-              "${{ inputs.helm-release-name }}" \
-              ./helm-charts/todoapp \
+            helm install todoapp ./helm-package/todoapp-*.tgz  \
+              --namespace todoapp \
+              --create-namespace \
               -f "${{ inputs.helm-values-path }}" \
               --atomic \
               --wait \
@@ -77,3 +76,4 @@ jobs:
               --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
               --set-string todoapp.image.repository="${{ secrets.DOCKERHUB_USERNAME }}/todoapp" \
               --set-string todoapp.image.tag="${{ inputs.version }}"
+
