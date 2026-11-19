@@ -18,8 +18,8 @@ on:
       helm-release-name:
         type: string
         default: 'todoapp'
-
-deploy-helm:
+jobs:
+  deploy-helm:
         name: ${{ inputs.environment }}
         runs-on: ubuntu-24.04
         environment: ${{ inputs.environment }}
@@ -63,7 +63,7 @@ deploy-helm:
               --rollback-on-failure \
               --wait \
               --timeout 3600s \
-              --debug $ {{ inputs.helm-release-name }} \
+              --debug ${{ inputs.helm-release-name }} \
                 ${{ inputs.helm-values-path }}
               --set mysql.config.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
               --set mysql.config.MYSQL_USER="${{ secrets.MYSQL_USER }}" \

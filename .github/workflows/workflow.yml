@@ -135,7 +135,7 @@ jobs:
     needs: deploy-helm-development
     secrets: inherit
     with:
-      environment: development
+      environment: staging
       version: ${{ github.sha }}
       helm-values-path: ./helm-charts/todoapp/values/stg.yaml
       helm-release-name: todoapp-staging
