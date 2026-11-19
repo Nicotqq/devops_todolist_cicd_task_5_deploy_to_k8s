@@ -41,30 +41,33 @@ jobs:
         - name: Set up Kubectl
           uses: azure/setup-kubectl@v4
 
-        - name: Azure Login
-          uses: azure/login@v2
+        - name: Create Kind Cluster
+          uses: helm/kind-action@v1
           with:
-            creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      
-        - name: Set AKS context
-          shell: bash
-          run: |
-            az aks get-credentials \
-              --resource-group "devops_todolist_cicd_task_5_deploy_to_k8s" \
-              --name "mateapp-development-aks" \
-              --overwrite-existing
+            config: cluster.yml
+            cluster_name: ${{ inputs.environment }}
 
         
-        - name: Deploy helm chart to Development
+        - name: Helm Dry Run
+          run: |
+            helm install "${{ inputs.helm-release-name }}" \
+              ./helm-charts/todoapp \
+              --namespace todoapp \
+              --create-namespace \
+              --dry-run \
+              -f "${{ inputs.helm-values-path }}"
+        
+        
+        - name: Deploy Helm Chart
           shell: bash
           run: |
             helm upgrade --install \
-              --rollback-on-failure \
+              "${{ inputs.helm-release-name }}" \
+              ./helm-charts/todoapp \
+              -f "${{ inputs.helm-values-path }}" \
+              --atomic \
               --wait \
-              --timeout 3600s \
-              --debug ${{ inputs.helm-release-name }} \
-                ${{ inputs.helm-values-path }}
+              --timeout 10m \
               --set mysql.config.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
               --set mysql.config.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
               --set mysql.config.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
@@ -74,4 +77,4 @@ jobs:
               --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
               --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
               --set-string todoapp.image.repository="${{ secrets.DOCKERHUB_USERNAME }}/todoapp" \
-              --set-string todoapp.image.tag="${{ github.sha }}"
+              --set-string todoapp.image.tag="${{ inputs.version }}"
