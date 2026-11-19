@@ -119,61 +119,23 @@ jobs:
         name: helm-package
         path: ./*.tgz
   
-  deploy-helm:
-    name: Deploy Helm Chart
-    needs:
-      - docker-ci
-      - helm-ci
-    runs-on: ubuntu-24.04
-    environment: development
+  deploy-helm-development:
+    name: Deploy Helm 
+    uses: ./.github/workflows/deploy-workflow.yml
+    needs: [helm-ci, docker-ci]
+    secrets: inherit
+    with:
+      environment: development
+      version: ${{ github.sha }}
 
-    steps:
-    - uses: actions/download-artifact@v4
-      with:
-        name: helm-package
-        path: .
-    
-    - uses: actions/download-artifact@v4
-      with:
-        name: helm-artifacts
-        path: .
-    
-    - name: Set Up Helm
-      uses: azure/setup-helm@v4.2.0
 
-    - name: Set up Kubectl
-      uses: azure/setup-kubectl@v4
-
-    - name: Azure Login
-      uses: azure/login@v2
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-   
-    - name: Set AKS context
-      shell: bash
-      run: |
-        az aks get-credentials \
-          --resource-group "devops_todolist_cicd_task_5_deploy_to_k8s" \
-          --name "mateapp-development-aks" \
-          --overwrite-existing
-
-    - name: Deploy helm chart to Development
-      shell: bash
-      run: |
-        helm upgrade --install \
-          --rollback-on-failure \
-          --wait \
-          --timeout 3600s \
-          --debug \
-          todoapp ./todoapp-*.tgz \
-          -f ./helm-charts/todoapp/values.yaml\ 
-          --set mysql.config.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
-          --set mysql.config.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
-          --set mysql.config.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
-          --set todoapp.secrets.SECRET_KEY="${{ secrets.SECRET_KEY }}" \
-          --set todoapp.secrets.DB_NAME="${{ secrets.DB_NAME }}" \
-          --set todoapp.secrets.DB_USER="${{ secrets.DB_USER }}" \
-          --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-          --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
-          --set-string todoapp.image.repository="${{ secrets.DOCKERHUB_USERNAME }}/todoapp"
+  deploy-helm-staging:
+    name: Deploy Helm 
+    uses: ./.github/workflows/deploy-workflow.yml
+    needs: deploy-helm-development
+    secrets: inherit
+    with:
+      environment: development
+      version: ${{ github.sha }}
+      helm-values-path: ./helm-charts/todoapp/values/stg.yaml
+      helm-release-name: todoapp-staging
