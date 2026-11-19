@@ -1,5 +1,5 @@
 name: helm-upgrade
-run-name: ${{ github.actor }} - ${{ github.ref_name}}
+run-name: ${{ github.actor }} - ${{ github.ref_name }}
 
 on:
   workflow_call:
@@ -10,7 +10,7 @@ on:
         type: string
       version:
         required: true
-        description: 'The version of the helm chart to deploy'
+        description: 'The image tag to deploy'
         type: string
       helm-values-path:
         type: string
@@ -18,62 +18,82 @@ on:
       helm-release-name:
         type: string
         default: 'todoapp'
+
 jobs:
   deploy-helm:
-        name: ${{ inputs.environment }}
-        runs-on: ubuntu-24.04
-        environment: ${{ inputs.environment }}
+    name: ${{ inputs.environment }}
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}
 
-        steps:
-        - uses: actions/download-artifact@v4
-          with:
-            name: helm-package
-            path: .
-        
-        - uses: actions/download-artifact@v4
-          with:
-            name: helm-artifacts
-            path: .
-        
-        - name: Set Up Helm
-          uses: azure/setup-helm@v4.2.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-        - name: Set up Kubectl
-          uses: azure/setup-kubectl@v4
+      - name: Download Helm package
+        uses: actions/download-artifact@v4
+        with:
+          name: helm-package
+          path: ./helm-package
 
-        - name: Create Kind Cluster
-          uses: helm/kind-action@v1
-          with:
-            cluster_name: ${{ inputs.environment }}
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.2.0
 
-        
-        - name: Helm Dry Run
-          run: |
-            helm install todoapp ./helm-package/todoapp-*.tgz  \
-              --namespace todoapp \
-              --create-namespace \
-              --dry-run \
-              -f "${{ inputs.helm-values-path }}"
-        
-        
-        - name: Deploy Helm Chart
-          shell: bash
-          run: |
-            helm install todoapp ./helm-package/todoapp-*.tgz  \
-              --namespace todoapp \
-              --create-namespace \
-              -f "${{ inputs.helm-values-path }}" \
-              --atomic \
-              --wait \
-              --timeout 10m \
-              --set mysql.config.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
-              --set mysql.config.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
-              --set mysql.config.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
-              --set todoapp.secrets.SECRET_KEY="${{ secrets.SECRET_KEY }}" \
-              --set todoapp.secrets.DB_NAME="${{ secrets.DB_NAME }}" \
-              --set todoapp.secrets.DB_USER="${{ secrets.DB_USER }}" \
-              --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-              --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
-              --set-string todoapp.image.repository="${{ secrets.DOCKERHUB_USERNAME }}/todoapp" \
-              --set-string todoapp.image.tag="${{ inputs.version }}"
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v4
 
+      - name: Create Kind Cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: ${{ inputs.environment }}
+
+      - name: Debug
+        shell: bash
+        run: |
+          ls -laR ./helm-package
+          ls -la "${{ inputs.helm-values-path }}"
+
+      - name: Helm Dry Run
+        shell: bash
+        env:
+          RELEASE: ${{ inputs.helm-release-name }}
+        run: |
+          CHART=$(ls ./helm-package/todoapp-*.tgz | head -n1)
+          helm install "$RELEASE" "$CHART" \
+            --namespace todoapp \
+            --create-namespace \
+            --dry-run=client \
+            -f "${{ inputs.helm-values-path }}" \
+            --set mysql.config.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
+            --set mysql.config.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
+            --set mysql.config.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
+            --set todoapp.secrets.SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+            --set todoapp.secrets.DB_NAME="${{ secrets.DB_NAME }}" \
+            --set todoapp.secrets.DB_USER="${{ secrets.DB_USER }}" \
+            --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
+            --set-string todoapp.image.repository="${{ secrets.DOCKERHUB_USERNAME }}/todoapp" \
+            --set-string todoapp.image.tag="${{ inputs.version }}"
+
+      - name: Deploy Helm Chart
+        shell: bash
+        env:
+          RELEASE: ${{ inputs.helm-release-name }}
+        run: |
+          CHART=$(ls ./helm-package/todoapp-*.tgz | head -n1)
+          helm install "$RELEASE" "$CHART" \
+            --namespace todoapp \
+            --create-namespace \
+            -f "${{ inputs.helm-values-path }}" \
+            --atomic \
+            --wait \
+            --timeout 10m \
+            --set mysql.config.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
+            --set mysql.config.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
+            --set mysql.config.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
+            --set todoapp.secrets.SECRET_KEY="${{ secrets.SECRET_KEY }}" \
+            --set todoapp.secrets.DB_NAME="${{ secrets.DB_NAME }}" \
+            --set todoapp.secrets.DB_USER="${{ secrets.DB_USER }}" \
+            --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+            --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
+            --set-string todoapp.image.repository="${{ secrets.DOCKERHUB_USERNAME }}/todoapp" \
+            --set-string todoapp.image.tag="${{ inputs.version }}"
